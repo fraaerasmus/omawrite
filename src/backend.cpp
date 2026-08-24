@@ -37,6 +37,12 @@ constexpr qreal typoraLineHeightPercent = 140;
 const QString lastSaveDirectorySetting = QStringLiteral("file/lastSaveDirectory");
 const QString libraryRootSetting = QStringLiteral("library/root");
 const QString sidebarVisibleSetting = QStringLiteral("library/sidebarVisible");
+const QString editorZoomSetting = QStringLiteral("editor/zoom");
+// Far enough either way to matter, close enough that the column of text is
+// still a column. Beyond this the wrap width stops being a sensible measure.
+constexpr qreal minimumEditorZoom = 0.6;
+constexpr qreal maximumEditorZoom = 2.5;
+constexpr qreal editorZoomStep = 0.1;
 
 QString Backend::normalizedLinkUrl(const QString &clipboardText) {
     QString candidate = clipboardText.trimmed();
@@ -584,6 +590,32 @@ void Backend::newDocumentInLibrary() {
     file.close();
     emit libraryRootChanged();
     open(QUrl::fromLocalFile(path));
+}
+
+/**
+ * Editor zoom, multiplied on top of the desktop's own text scale rather than
+ * replacing it: the system knob still moves the whole app, this moves only the
+ * writing surface.
+ */
+qreal Backend::editorZoom() const {
+    const qreal stored = QSettings().value(editorZoomSetting, 1.0).toReal();
+    return qBound(minimumEditorZoom, stored, maximumEditorZoom);
+}
+
+void Backend::setEditorZoom(qreal zoom) {
+    const qreal clamped = qBound(minimumEditorZoom, zoom, maximumEditorZoom);
+    if (qFuzzyCompare(clamped, editorZoom()))
+        return;
+    QSettings().setValue(editorZoomSetting, clamped);
+    emit editorZoomChanged();
+}
+
+void Backend::adjustEditorZoom(qreal steps) {
+    setEditorZoom(editorZoom() + steps * editorZoomStep);
+}
+
+void Backend::resetEditorZoom() {
+    setEditorZoom(1.0);
 }
 
 void Backend::scheduleRecovery() {

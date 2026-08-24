@@ -25,10 +25,16 @@ ApplicationWindow {
     // `omarchy display text size` drives) anchored so its 12px default leaves
     // the app at the sizes it was designed around.
     readonly property real textScale: backend.textScale
-    readonly property int editorFontPixelSize: scaledSize(20)
+    // Chrome keeps following the desktop text scale alone; only the writing
+    // surface takes the zoom on top of it.
+    readonly property int editorFontPixelSize: Math.max(1, Math.round(20 * win.textScale * backend.editorZoom))
+    // The writing area, not the window: with the sidebar open these differ by
+    // its width, and measuring the wrap column against the window overflows the
+    // viewport and clips the text at both edges.
+    readonly property int editorAreaWidth: width - (backend.sidebarVisible ? win.scaledSize(240) : 0)
     readonly property int editorWidth: Math.min(
         Math.round(writerFontMetrics.averageCharacterWidth * 65),
-        Math.max(360, width - Math.round(writerFontMetrics.averageCharacterWidth * 20)))
+        Math.max(360, editorAreaWidth - Math.round(writerFontMetrics.averageCharacterWidth * 20)))
     property bool closeConfirmed: false
     property bool searchOpen: false
     property bool searchUpdating: false
@@ -231,6 +237,24 @@ ApplicationWindow {
     }
 
     Shortcut {
+        sequences: ["Ctrl++", "Ctrl+="]
+        context: Qt.ApplicationShortcut
+        onActivated: backend.adjustEditorZoom(1)
+    }
+
+    Shortcut {
+        sequence: "Ctrl+-"
+        context: Qt.ApplicationShortcut
+        onActivated: backend.adjustEditorZoom(-1)
+    }
+
+    Shortcut {
+        sequence: "Ctrl+0"
+        context: Qt.ApplicationShortcut
+        onActivated: backend.resetEditorZoom()
+    }
+
+    Shortcut {
         sequence: "Ctrl+\\"
         context: Qt.ApplicationShortcut
         onActivated: backend.sidebarVisible = !backend.sidebarVisible
@@ -337,7 +361,7 @@ ApplicationWindow {
         standardButtons: Dialog.Close
         anchors.centerIn: parent
         contentItem: Label {
-            text: "Ctrl+S  Save\nCtrl+Shift+S  Save As\nCtrl+O  Open\nCtrl+N  New Window\nCtrl+F  Find\nCtrl+H  Find and Replace\nCtrl+B  Bold\nCtrl+I  Italic\nCtrl+K  Link\nCtrl+P  Print\nCtrl+\\  Toggle sidebar\nF11 / Super+F  Fullscreen\nCtrl+?  Shortcuts"
+            text: "Ctrl+S  Save\nCtrl+Shift+S  Save As\nCtrl+O  Open\nCtrl+N  New Window\nCtrl+F  Find\nCtrl+H  Find and Replace\nCtrl+B  Bold\nCtrl+I  Italic\nCtrl+K  Link\nCtrl+P  Print\nCtrl+= / Ctrl+-  Zoom\nCtrl+0  Reset zoom\nCtrl+\\  Toggle sidebar\nF11 / Super+F  Fullscreen\nCtrl+?  Shortcuts"
             lineHeight: 1.5
         }
     }
@@ -377,7 +401,10 @@ ApplicationWindow {
             contentHeight: Math.max(height, editor.y + editor.implicitHeight + 220)
             boundsBehavior: Flickable.StopAtBounds
             ScrollBar.vertical: ScrollBar {
-                policy: ScrollBar.AsNeeded
+                // The writing surface carries no scroll bar; position is the
+                // text itself. Kept attached rather than deleted because the
+                // wheel handler drives contentY through it.
+                policy: ScrollBar.AlwaysOff
                 // Wheel scrolling moves contentY directly rather than
                 // flicking the Flickable, so the bar has to be told about
                 // that activity; linger briefly after the last event.

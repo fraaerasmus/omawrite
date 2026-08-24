@@ -29,6 +29,7 @@ class Backend : public QObject {
     Q_PROPERTY(QString themeAccent READ themeAccent NOTIFY themeColorsChanged)
     Q_PROPERTY(QString themeSelection READ themeSelection NOTIFY themeColorsChanged)
     Q_PROPERTY(QUrl libraryRoot READ libraryRoot NOTIFY libraryRootChanged)
+    Q_PROPERTY(qreal editorZoom READ editorZoom WRITE setEditorZoom NOTIFY editorZoomChanged)
     Q_PROPERTY(bool sidebarVisible READ sidebarVisible WRITE setSidebarVisible NOTIFY
                    sidebarVisibleChanged)
 
@@ -60,6 +61,8 @@ public:
     Q_INVOKABLE void openDialog();
     Q_INVOKABLE void chooseLibraryRoot(const QUrl &url);
     Q_INVOKABLE void newDocumentInLibrary();
+    Q_INVOKABLE void adjustEditorZoom(qreal steps);
+    Q_INVOKABLE void resetEditorZoom();
     Q_INVOKABLE void open(const QUrl &url);
     Q_INVOKABLE void save();
     Q_INVOKABLE void saveForClose();
@@ -72,6 +75,8 @@ public:
     Q_INVOKABLE void printDocument();
     Q_INVOKABLE void newWindow();
     QUrl libraryRoot() const;
+    qreal editorZoom() const;
+    void setEditorZoom(qreal zoom);
     bool sidebarVisible() const;
     void setSidebarVisible(bool visible);
     Q_INVOKABLE QString clipboardUrl() const;
@@ -85,6 +90,7 @@ public:
 
 signals:
     void libraryRootChanged();
+    void editorZoomChanged();
     void sidebarVisibleChanged();
     void fileUrlChanged();
     void modifiedChanged();

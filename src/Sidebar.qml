@@ -23,10 +23,10 @@ Item {
         return Math.round(size * textScale)
     }
 
-    // A hair off the page so the edge reads without a hard rule.
+    // Same paper as the editor: the hairline below is the only division.
     Rectangle {
         anchors.fill: parent
-        color: Qt.rgba(sidebar.textColor.r, sidebar.textColor.g, sidebar.textColor.b, 0.035)
+        color: sidebar.pageColor
     }
 
     Rectangle {

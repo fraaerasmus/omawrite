@@ -12,7 +12,11 @@ Install via the Omarchy Package Repository via the `omawrite` package. It's inst
 
 ## Shortcuts
 
-- `Ctrl+S` saves. Unsaved documents use the XDG desktop portal file picker.
+- `Ctrl+S` saves now rather than waiting for the autosave interval.
+- `Ctrl+=` and `Ctrl+-` zoom the writing surface; `Ctrl+0` resets it. The level
+  persists, and multiplies the desktop's own text scale rather than replacing
+  it — the chrome stays where the system put it.
+- `Ctrl+\` shows and hides the library sidebar. That also persists.
 - `Ctrl+Shift+S` saves as.
 - `Ctrl+O` opens a Markdown file through the portal picker.
 - `Ctrl+P` opens the system print dialog.

@@ -382,6 +382,58 @@ private slots:
         QVERIFY(backend.sidebarVisible() == false);
     }
 
+    void remembersEditorZoomAcrossSessions() {
+        Backend backend;
+        backend.resetEditorZoom();
+        QCOMPARE(backend.editorZoom(), 1.0);
+
+        backend.adjustEditorZoom(2);
+        QVERIFY(qFuzzyCompare(backend.editorZoom(), 1.2));
+
+        // A second Backend is what a relaunch looks like: the value comes back
+        // from QSettings, not from the object that set it.
+        Backend relaunched;
+        QVERIFY(qFuzzyCompare(relaunched.editorZoom(), 1.2));
+
+        backend.setEditorZoom(99.0);
+        QCOMPARE(backend.editorZoom(), 2.5);
+        backend.setEditorZoom(0.01);
+        QCOMPARE(backend.editorZoom(), 0.6);
+
+        backend.resetEditorZoom();
+        QCOMPARE(backend.editorZoom(), 1.0);
+    }
+
+    void zoomScalesTheEditorButNotTheChrome() {
+        const QString mainQmlPath = QFINDTESTDATA("../src/Main.qml");
+        QVERIFY(!mainQmlPath.isEmpty());
+
+        Backend backend;
+        backend.resetEditorZoom();
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
+        QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> window(component.create());
+        QVERIFY2(window, qPrintable(component.errorString()));
+
+        QObject *editor = window->findChild<QObject *>(QStringLiteral("sourceEditor"));
+        QVERIFY(editor);
+        QCOMPARE(editor->property("font").value<QFont>().pixelSize(), 20);
+
+        backend.setEditorZoom(1.5);
+        QCOMPARE(window->property("editorFontPixelSize").toInt(), 30);
+        QCOMPARE(editor->property("font").value<QFont>().pixelSize(), 30);
+
+        // Chrome follows the desktop text scale alone, so it is unmoved.
+        QObject *sidebar = window->findChild<QObject *>(QStringLiteral("librarySidebar"));
+        QVERIFY(sidebar);
+        QCOMPARE(sidebar->property("width").toInt(), 240);
+
+        backend.resetEditorZoom();
+        QCOMPARE(editor->property("font").value<QFont>().pixelSize(), 20);
+    }
+
 private:
     QTemporaryDir m_settingsDirectory;
 };
