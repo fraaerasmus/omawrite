@@ -246,6 +246,68 @@ private slots:
         QCOMPARE(QFileInfo(fallbackUrl.toLocalFile()).absolutePath(), QDir::homePath());
     }
 
+    void autosavesAnOpenFileWithoutAnExplicitSave() {
+        const QString mainQmlPath = QFINDTESTDATA("../src/Main.qml");
+        QVERIFY(!mainQmlPath.isEmpty());
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const QString path = directory.filePath(QStringLiteral("draft.md"));
+
+        Backend backend;
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
+        QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> window(component.create());
+        QVERIFY2(window, qPrintable(component.errorString()));
+        QObject *editor = window->findChild<QObject *>(QStringLiteral("sourceEditor"));
+        QVERIFY(editor);
+
+        backend.saveAs(QUrl::fromLocalFile(path));
+        QVERIFY(QFileInfo::exists(path));
+        QVERIFY(!backend.modified());
+
+        editor->setProperty("text", QStringLiteral("written, never saved by hand"));
+        QVERIFY(backend.modified());
+
+        // The debounce has to actually debounce: nothing on disk immediately.
+        QFile early(path);
+        QVERIFY(early.open(QIODevice::ReadOnly));
+        QVERIFY(!early.readAll().contains("never saved by hand"));
+        early.close();
+
+        QTRY_VERIFY_WITH_TIMEOUT(!backend.modified(), 5000);
+        QFile written(path);
+        QVERIFY(written.open(QIODevice::ReadOnly));
+        QCOMPARE(QString::fromUtf8(written.readAll()).trimmed(),
+                 QStringLiteral("written, never saved by hand"));
+    }
+
+    void autosaveNeverRaisesTheSaveAsDialog() {
+        const QString mainQmlPath = QFINDTESTDATA("../src/Main.qml");
+        QVERIFY(!mainQmlPath.isEmpty());
+
+        Backend backend;
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
+        QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> window(component.create());
+        QVERIFY2(window, qPrintable(component.errorString()));
+        QObject *editor = window->findChild<QObject *>(QStringLiteral("sourceEditor"));
+        QVERIFY(editor);
+
+        // An untitled buffer has nowhere to go. save() would answer that with
+        // the Save As dialog, which an idle timer must never trigger.
+        QSignalSpy saveDialogSpy(&backend, &Backend::saveDialogRequested);
+        editor->setProperty("text", QStringLiteral("untitled and unsaved"));
+        QVERIFY(backend.modified());
+
+        QTest::qWait(2500);
+        QCOMPARE(saveDialogSpy.count(), 0);
+        QVERIFY(backend.modified());
+    }
+
 private:
     QTemporaryDir m_settingsDirectory;
 };

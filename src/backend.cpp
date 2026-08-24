@@ -97,6 +97,12 @@ Backend::Backend(QObject *parent) : QObject(parent) {
     m_recoveryTimer.setSingleShot(true);
     m_recoveryTimer.setInterval(750);
     connect(&m_recoveryTimer, &QTimer::timeout, this, &Backend::writeRecovery);
+    // Longer than the recovery snapshot: the snapshot is cheap and local, this
+    // one rewrites the user's actual file. Restarted on every keystroke, so it
+    // fires once the typing stops rather than during it.
+    m_autosaveTimer.setSingleShot(true);
+    m_autosaveTimer.setInterval(1200);
+    connect(&m_autosaveTimer, &QTimer::timeout, this, &Backend::autosave);
     connect(&m_fileWatcher, &QFileSystemWatcher::fileChanged, this,
             [this](const QString &path) {
                 if (path != m_fileUrl.toLocalFile())
@@ -273,6 +279,7 @@ void Backend::keepExternalVersion() {
     }
     setModified(true);
     scheduleRecovery();
+    scheduleAutosave();
     watchCurrentFile();
     setStatus(QStringLiteral("Kept your version"));
 }
@@ -358,6 +365,7 @@ bool Backend::editorTextChanged() {
     setModified(true);
     setStatus(QStringLiteral("Unsaved"));
     scheduleRecovery();
+    scheduleAutosave();
     return true;
 }
 
@@ -515,6 +523,25 @@ void Backend::saveTo(const QUrl &url) {
 
 void Backend::scheduleRecovery() {
     m_recoveryTimer.start();
+}
+
+/**
+ * Arm the autosave, but only for a document that already has somewhere to go.
+ * An untitled buffer has no URL, and save() would answer that by throwing up
+ * the Save As dialog — which is the last thing an idle timer should do.
+ */
+void Backend::scheduleAutosave() {
+    if (!m_fileUrl.isLocalFile())
+        return;
+    m_autosaveTimer.start();
+}
+
+void Backend::autosave() {
+    if (!m_modified || !m_fileUrl.isLocalFile())
+        return;
+    // saveTo() drops the file watch before QSaveFile::commit() replaces the
+    // inode, so writing our own file is not mistaken for an external edit.
+    saveTo(m_fileUrl);
 }
 
 QString Backend::recoveryPath() const {
