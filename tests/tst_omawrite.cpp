@@ -6,6 +6,7 @@
 #include <QQuickStyle>
 
 #include "backend.h"
+#include "librarymodel.h"
 #include "markdownhighlighter.h"
 
 class OmawriteTest : public QObject {
@@ -432,6 +433,125 @@ private slots:
 
         backend.resetEditorZoom();
         QCOMPARE(editor->property("font").value<QFont>().pixelSize(), 20);
+    }
+
+    void listsPinnedDocumentsFirst() {
+        QTemporaryDir library;
+        QVERIFY(library.isValid());
+        const QDir dir(library.path());
+        for (const QString &name : {QStringLiteral("Alpha.md"), QStringLiteral("Beta.md"),
+                                    QStringLiteral("Gamma.md")}) {
+            QFile file(dir.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.close();
+        }
+
+        LibraryModel model;
+        model.setFolder(QUrl::fromLocalFile(library.path()));
+        QCOMPARE(model.count(), 3);
+        QCOMPARE(model.data(model.index(0), LibraryModel::DisplayNameRole).toString(),
+                 QStringLiteral("Alpha"));
+
+        const QUrl gamma = QUrl::fromLocalFile(dir.filePath(QStringLiteral("Gamma.md")));
+        model.togglePinned(gamma);
+        QVERIFY(model.isPinned(gamma));
+        QCOMPARE(model.data(model.index(0), LibraryModel::DisplayNameRole).toString(),
+                 QStringLiteral("Gamma"));
+        QVERIFY(model.data(model.index(0), LibraryModel::PinnedRole).toBool());
+        // The unpinned remainder keeps its own alphabetical order.
+        QCOMPARE(model.data(model.index(1), LibraryModel::DisplayNameRole).toString(),
+                 QStringLiteral("Alpha"));
+
+        model.togglePinned(gamma);
+        QVERIFY(!model.isPinned(gamma));
+        QCOMPARE(model.data(model.index(0), LibraryModel::DisplayNameRole).toString(),
+                 QStringLiteral("Alpha"));
+    }
+
+    void trashingADocumentDropsItsPin() {
+        QTemporaryDir library;
+        QVERIFY(library.isValid());
+        const QString path = QDir(library.path()).filePath(QStringLiteral("Doomed.md"));
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("gone soon");
+        file.close();
+
+        LibraryModel model;
+        model.setFolder(QUrl::fromLocalFile(library.path()));
+        const QUrl url = QUrl::fromLocalFile(path);
+        model.togglePinned(url);
+        QCOMPARE(model.count(), 1);
+        QVERIFY(model.isPinned(url));
+
+        if (!model.moveToTrash(url))
+            QSKIP("No usable trash on this system");
+
+        QVERIFY(!QFileInfo::exists(path));
+        QCOMPARE(model.count(), 0);
+        // A stale pin would resurrect the row if the name were ever reused.
+        QVERIFY(!model.isPinned(url));
+    }
+
+    void bindsTheLibraryModelAndCollapseControl() {
+        const QString mainQmlPath = QFINDTESTDATA("../src/Main.qml");
+        QVERIFY(!mainQmlPath.isEmpty());
+        QTemporaryDir library;
+        QVERIFY(library.isValid());
+        QFile seed(QDir(library.path()).filePath(QStringLiteral("Only.md")));
+        QVERIFY(seed.open(QIODevice::WriteOnly));
+        seed.close();
+
+        Backend backend;
+        backend.chooseLibraryRoot(QUrl::fromLocalFile(library.path()));
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
+        QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> window(component.create());
+        QVERIFY2(window, qPrintable(component.errorString()));
+
+        QCOMPARE(backend.library()->count(), 1);
+        QVERIFY(window->findChild<QObject *>(QStringLiteral("collapseButton")));
+
+        // The row delegate and its context menu are not reachable from here:
+        // offscreen, the ListView never instantiates a delegate, so the menu has
+        // no object to find. Pin and trash are covered against the model above;
+        // this only asserts the sidebar is wired to it.
+        QObject *sidebar = window->findChild<QObject *>(QStringLiteral("librarySidebar"));
+        QVERIFY(sidebar);
+        QCOMPARE(qvariant_cast<QObject *>(sidebar->property("model")), backend.library());
+
+        const QUrl only = QUrl::fromLocalFile(QDir(library.path()).filePath(QStringLiteral("Only.md")));
+        backend.library()->togglePinned(only);
+        QVERIFY(backend.library()->isPinned(only));
+        backend.library()->togglePinned(only);
+        QVERIFY(!backend.library()->isPinned(only));
+    }
+
+    void collapseButtonHidesTheSidebar() {
+        const QString mainQmlPath = QFINDTESTDATA("../src/Main.qml");
+        QVERIFY(!mainQmlPath.isEmpty());
+
+        Backend backend;
+        backend.setSidebarVisible(true);
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
+        QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> window(component.create());
+        QVERIFY2(window, qPrintable(component.errorString()));
+
+        QObject *sidebar = window->findChild<QObject *>(QStringLiteral("librarySidebar"));
+        QVERIFY(sidebar);
+        QVERIFY(sidebar->property("visible").toBool());
+
+        QVERIFY(QMetaObject::invokeMethod(sidebar, "collapseRequested"));
+        QVERIFY(!sidebar->property("visible").toBool());
+        // It has to stick, or the button is just a flicker.
+        QVERIFY(!backend.sidebarVisible());
+
+        backend.setSidebarVisible(true);
     }
 
 private:

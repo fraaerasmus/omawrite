@@ -1,5 +1,7 @@
 #include "backend.h"
 
+#include "librarymodel.h"
+
 #include <QClipboard>
 #include <QColor>
 #include <QCoreApplication>
@@ -588,7 +590,7 @@ void Backend::newDocumentInLibrary() {
         return;
     }
     file.close();
-    emit libraryRootChanged();
+    library()->refresh();
     open(QUrl::fromLocalFile(path));
 }
 
@@ -616,6 +618,26 @@ void Backend::adjustEditorZoom(qreal steps) {
 
 void Backend::resetEditorZoom() {
     setEditorZoom(1.0);
+}
+
+/**
+ * The library listing, created on first use and pointed at the current root.
+ * Owned by the Backend so QML can reach it as `backend.library` without the
+ * window having to construct anything.
+ */
+LibraryModel *Backend::library() const {
+    if (!m_library) {
+        auto *self = const_cast<Backend *>(this);
+        self->m_library = new LibraryModel(self);
+        self->m_library->setFolder(libraryRoot());
+        connect(self, &Backend::libraryRootChanged, self->m_library,
+                [self] { self->m_library->setFolder(self->libraryRoot()); });
+        connect(self->m_library, &LibraryModel::trashFailed, self,
+                [self](const QString &fileName) {
+                    self->setStatus(QStringLiteral("Could not move %1 to the trash.").arg(fileName));
+                });
+    }
+    return m_library;
 }
 
 void Backend::scheduleRecovery() {

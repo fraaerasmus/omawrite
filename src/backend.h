@@ -7,6 +7,10 @@
 #include <QString>
 #include <QTimer>
 #include <QUrl>
+
+// Full definition, not a forward declaration: moc requires a complete type
+// for a Q_PROPERTY that exposes a pointer to QML.
+#include "librarymodel.h"
 #include <QVariantList>
 #include <memory>
 
@@ -29,6 +33,7 @@ class Backend : public QObject {
     Q_PROPERTY(QString themeAccent READ themeAccent NOTIFY themeColorsChanged)
     Q_PROPERTY(QString themeSelection READ themeSelection NOTIFY themeColorsChanged)
     Q_PROPERTY(QUrl libraryRoot READ libraryRoot NOTIFY libraryRootChanged)
+    Q_PROPERTY(LibraryModel *library READ library CONSTANT)
     Q_PROPERTY(qreal editorZoom READ editorZoom WRITE setEditorZoom NOTIFY editorZoomChanged)
     Q_PROPERTY(bool sidebarVisible READ sidebarVisible WRITE setSidebarVisible NOTIFY
                    sidebarVisibleChanged)
@@ -75,6 +80,7 @@ public:
     Q_INVOKABLE void printDocument();
     Q_INVOKABLE void newWindow();
     QUrl libraryRoot() const;
+    LibraryModel *library() const;
     qreal editorZoom() const;
     void setEditorZoom(qreal zoom);
     bool sidebarVisible() const;
@@ -144,6 +150,7 @@ private:
     QTimer m_wordCountTimer;
     QTimer m_recoveryTimer;
     QTimer m_autosaveTimer;
+    LibraryModel *m_library = nullptr;
     QFileSystemWatcher m_fileWatcher;
     QPointer<QTextDocument> m_document;
     QPointer<QWindow> m_parentWindow;

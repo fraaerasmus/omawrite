@@ -1,14 +1,13 @@
 import QtQuick
 import QtQuick.Controls
-import Qt.labs.folderlistmodel
 
-// The library list: every Markdown file in one folder, newest activity at the
-// writer's fingertips. Deliberately not a file manager — no tree, no rename, no
-// drag. Picking a document and starting a new one are the whole surface.
+// The library list: every Markdown file in one folder, pinned ones first.
+// Deliberately not a file manager — no tree, no drag, no rename. Opening,
+// starting, pinning and discarding a document are the whole surface.
 Item {
     id: sidebar
 
-    property url folder
+    property var model
     property url currentFile
     property color pageColor
     property color textColor
@@ -18,6 +17,7 @@ Item {
 
     signal fileChosen(url file)
     signal newRequested()
+    signal collapseRequested()
 
     function scaled(size) {
         return Math.round(size * textScale)
@@ -35,13 +35,26 @@ Item {
         anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
     }
 
-    FolderListModel {
-        id: files
-        folder: sidebar.folder
-        nameFilters: ["*.md", "*.markdown", "*.txt"]
-        showDirs: false
-        showHidden: false
-        sortField: FolderListModel.Name
+    component HeaderButton: Text {
+        required property string tip
+        signal triggered()
+
+        color: area.containsMouse ? sidebar.accentColor : sidebar.mutedColor
+        font.family: "iA Writer Mono S"
+        font.pixelSize: sidebar.scaled(15)
+
+        ToolTip.visible: area.containsMouse
+        ToolTip.text: tip
+        ToolTip.delay: 600
+
+        MouseArea {
+            id: area
+            anchors.fill: parent
+            anchors.margins: -sidebar.scaled(7)
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: parent.triggered()
+        }
     }
 
     Item {
@@ -57,21 +70,22 @@ Item {
             anchors { left: parent.left; leftMargin: sidebar.scaled(16); verticalCenter: parent.verticalCenter }
         }
 
-        Text {
-            objectName: "newDocumentButton"
-            text: "+"
-            color: newArea.containsMouse ? sidebar.accentColor : sidebar.mutedColor
-            font.family: "iA Writer Mono S"
-            font.pixelSize: sidebar.scaled(17)
+        Row {
+            spacing: sidebar.scaled(14)
             anchors { right: parent.right; rightMargin: sidebar.scaled(14); verticalCenter: parent.verticalCenter }
 
-            MouseArea {
-                id: newArea
-                anchors.fill: parent
-                anchors.margins: -sidebar.scaled(8)
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: sidebar.newRequested()
+            HeaderButton {
+                objectName: "newDocumentButton"
+                text: "+"
+                tip: "New document"
+                onTriggered: sidebar.newRequested()
+            }
+
+            HeaderButton {
+                objectName: "collapseButton"
+                text: "«"
+                tip: "Hide sidebar  (Ctrl+\\)"
+                onTriggered: sidebar.collapseRequested()
             }
         }
     }
@@ -82,15 +96,17 @@ Item {
         anchors { left: parent.left; right: parent.right; top: header.bottom; bottom: parent.bottom }
         anchors.bottomMargin: sidebar.scaled(32)
         clip: true
-        model: files
+        model: sidebar.model
         boundsBehavior: Flickable.StopAtBounds
 
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
         delegate: Item {
-            required property int index
-            required property string fileName
+            id: row
+
+            required property string displayName
             required property url fileUrl
+            required property bool pinned
 
             width: list.width
             height: sidebar.scaled(30)
@@ -100,7 +116,7 @@ Item {
             Rectangle {
                 anchors.fill: parent
                 anchors.rightMargin: 1
-                color: parent.current
+                color: row.current
                     ? Qt.rgba(sidebar.textColor.r, sidebar.textColor.g, sidebar.textColor.b, 0.07)
                     : hover.containsMouse
                         ? Qt.rgba(sidebar.textColor.r, sidebar.textColor.g, sidebar.textColor.b, 0.04)
@@ -108,17 +124,31 @@ Item {
             }
 
             Text {
-                // The extension is noise when every row has one.
-                text: fileName.replace(/\.(md|markdown|txt)$/i, "")
-                color: parent.current ? sidebar.textColor : sidebar.mutedColor
+                text: row.displayName
+                color: row.current ? sidebar.textColor : sidebar.mutedColor
                 font.family: "iA Writer Mono S"
                 font.pixelSize: sidebar.scaled(12)
                 elide: Text.ElideRight
                 anchors {
                     left: parent.left
-                    right: parent.right
+                    right: pinMark.left
                     leftMargin: sidebar.scaled(16)
-                    rightMargin: sidebar.scaled(12)
+                    rightMargin: sidebar.scaled(6)
+                    verticalCenter: parent.verticalCenter
+                }
+            }
+
+            // A dot rather than a pin glyph: the font has no pin, and a pinned
+            // row is already distinguished by sitting at the top.
+            Text {
+                id: pinMark
+                text: row.pinned ? "•" : ""
+                color: sidebar.mutedColor
+                font.family: "iA Writer Mono S"
+                font.pixelSize: sidebar.scaled(12)
+                anchors {
+                    right: parent.right
+                    rightMargin: sidebar.scaled(14)
                     verticalCenter: parent.verticalCenter
                 }
             }
@@ -128,13 +158,36 @@ Item {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: sidebar.fileChosen(fileUrl)
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: function (mouse) {
+                    if (mouse.button === Qt.RightButton)
+                        rowMenu.popup();
+                    else
+                        sidebar.fileChosen(row.fileUrl);
+                }
+            }
+
+            Menu {
+                id: rowMenu
+                objectName: "rowMenu"
+
+                MenuItem {
+                    objectName: "pinMenuItem"
+                    text: row.pinned ? "Unpin" : "Pin to top"
+                    onTriggered: sidebar.model.togglePinned(row.fileUrl)
+                }
+
+                MenuItem {
+                    objectName: "deleteMenuItem"
+                    text: "Move to trash"
+                    onTriggered: sidebar.model.moveToTrash(row.fileUrl)
+                }
             }
         }
     }
 
     Text {
-        visible: files.count === 0 && files.status === FolderListModel.Ready
+        visible: !sidebar.model || sidebar.model.count === 0
         text: "No documents yet"
         color: sidebar.mutedColor
         font.family: "iA Writer Mono S"

@@ -372,7 +372,7 @@ ApplicationWindow {
         width: win.scaledSize(240)
         visible: backend.sidebarVisible
         anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-        folder: backend.libraryRoot
+        model: backend.library
         currentFile: backend.fileUrl
         pageColor: win.pageColor
         textColor: win.textColor
@@ -383,6 +383,7 @@ ApplicationWindow {
         // so picking from the list cannot lose an untitled buffer.
         onFileChosen: (file) => win.requestOpen(file)
         onNewRequested: backend.newDocumentInLibrary()
+        onCollapseRequested: backend.sidebarVisible = false
     }
 
     Item {
