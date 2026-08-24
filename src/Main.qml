@@ -231,6 +231,12 @@ ApplicationWindow {
     }
 
     Shortcut {
+        sequence: "Ctrl+\\"
+        context: Qt.ApplicationShortcut
+        onActivated: backend.sidebarVisible = !backend.sidebarVisible
+    }
+
+    Shortcut {
         sequence: "Ctrl+G"
         context: Qt.ApplicationShortcut
         enabled: win.searchOpen
@@ -331,13 +337,35 @@ ApplicationWindow {
         standardButtons: Dialog.Close
         anchors.centerIn: parent
         contentItem: Label {
-            text: "Ctrl+S  Save\nCtrl+Shift+S  Save As\nCtrl+O  Open\nCtrl+N  New Window\nCtrl+F  Find\nCtrl+H  Find and Replace\nCtrl+B  Bold\nCtrl+I  Italic\nCtrl+K  Link\nCtrl+P  Print\nF11 / Super+F  Fullscreen\nCtrl+?  Shortcuts"
+            text: "Ctrl+S  Save\nCtrl+Shift+S  Save As\nCtrl+O  Open\nCtrl+N  New Window\nCtrl+F  Find\nCtrl+H  Find and Replace\nCtrl+B  Bold\nCtrl+I  Italic\nCtrl+K  Link\nCtrl+P  Print\nCtrl+\\  Toggle sidebar\nF11 / Super+F  Fullscreen\nCtrl+?  Shortcuts"
             lineHeight: 1.5
         }
     }
 
+    Sidebar {
+        id: librarySidebar
+        objectName: "librarySidebar"
+        width: win.scaledSize(240)
+        visible: backend.sidebarVisible
+        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+        folder: backend.libraryRoot
+        currentFile: backend.fileUrl
+        pageColor: win.pageColor
+        textColor: win.textColor
+        mutedColor: win.mutedColor
+        accentColor: backend.themeAccent
+        textScale: win.textScale
+        // requestOpen carries the unsaved-changes guard the file dialog uses,
+        // so picking from the list cannot lose an untitled buffer.
+        onFileChosen: (file) => win.requestOpen(file)
+        onNewRequested: backend.newDocumentInLibrary()
+    }
+
     Item {
+        // The editor, footer and search bar all live in here, so insetting this
+        // one item is what keeps every one of them clear of the sidebar.
         anchors.fill: parent
+        anchors.leftMargin: librarySidebar.visible ? librarySidebar.width : 0
 
         Flickable {
             id: editorFlick

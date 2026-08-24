@@ -308,6 +308,80 @@ private slots:
         QVERIFY(backend.modified());
     }
 
+    void createsNumberedDocumentsInTheLibrary() {
+        QTemporaryDir library;
+        QVERIFY(library.isValid());
+
+        Backend backend;
+        backend.chooseLibraryRoot(QUrl::fromLocalFile(library.path()));
+        QCOMPARE(backend.libraryRoot().toLocalFile(), library.path());
+
+        backend.newDocumentInLibrary();
+        const QString first = QDir(library.path()).filePath(QStringLiteral("Untitled.md"));
+        QVERIFY(QFileInfo::exists(first));
+        QCOMPARE(backend.fileUrl().toLocalFile(), first);
+
+        // A second new document must not silently reopen the first.
+        backend.newDocumentInLibrary();
+        const QString second = QDir(library.path()).filePath(QStringLiteral("Untitled 2.md"));
+        QVERIFY(QFileInfo::exists(second));
+        QCOMPARE(backend.fileUrl().toLocalFile(), second);
+    }
+
+    void newLibraryDocumentsAutosave() {
+        const QString mainQmlPath = QFINDTESTDATA("../src/Main.qml");
+        QVERIFY(!mainQmlPath.isEmpty());
+        QTemporaryDir library;
+        QVERIFY(library.isValid());
+
+        Backend backend;
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
+        QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> window(component.create());
+        QVERIFY2(window, qPrintable(component.errorString()));
+        QObject *editor = window->findChild<QObject *>(QStringLiteral("sourceEditor"));
+        QVERIFY(editor);
+
+        // The point of creating the file up front: a new document has a URL, so
+        // autosave covers it with no dialog and no Ctrl+S.
+        backend.chooseLibraryRoot(QUrl::fromLocalFile(library.path()));
+        backend.newDocumentInLibrary();
+
+        QSignalSpy saveDialogSpy(&backend, &Backend::saveDialogRequested);
+        editor->setProperty("text", QStringLiteral("straight into the library"));
+        QTRY_VERIFY_WITH_TIMEOUT(!backend.modified(), 5000);
+        QCOMPARE(saveDialogSpy.count(), 0);
+
+        QFile written(QDir(library.path()).filePath(QStringLiteral("Untitled.md")));
+        QVERIFY(written.open(QIODevice::ReadOnly));
+        QCOMPARE(QString::fromUtf8(written.readAll()).trimmed(),
+                 QStringLiteral("straight into the library"));
+    }
+
+    void showsTheLibrarySidebarByDefault() {
+        const QString mainQmlPath = QFINDTESTDATA("../src/Main.qml");
+        QVERIFY(!mainQmlPath.isEmpty());
+
+        Backend backend;
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
+        QQmlComponent component(&engine, QUrl::fromLocalFile(mainQmlPath));
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> window(component.create());
+        QVERIFY2(window, qPrintable(component.errorString()));
+
+        QObject *sidebar = window->findChild<QObject *>(QStringLiteral("librarySidebar"));
+        QVERIFY(sidebar);
+        QVERIFY(sidebar->property("visible").toBool());
+        QVERIFY(window->findChild<QObject *>(QStringLiteral("libraryList")));
+
+        backend.setSidebarVisible(false);
+        QVERIFY(!sidebar->property("visible").toBool());
+        QVERIFY(backend.sidebarVisible() == false);
+    }
+
 private:
     QTemporaryDir m_settingsDirectory;
 };

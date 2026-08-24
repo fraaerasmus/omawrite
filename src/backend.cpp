@@ -35,6 +35,8 @@
 
 constexpr qreal typoraLineHeightPercent = 140;
 const QString lastSaveDirectorySetting = QStringLiteral("file/lastSaveDirectory");
+const QString libraryRootSetting = QStringLiteral("library/root");
+const QString sidebarVisibleSetting = QStringLiteral("library/sidebarVisible");
 
 QString Backend::normalizedLinkUrl(const QString &clipboardText) {
     QString candidate = clipboardText.trimmed();
@@ -519,6 +521,67 @@ void Backend::saveTo(const QUrl &url) {
 
     if (shouldClose)
         emit closeAfterSave();
+}
+
+/**
+ * The folder the sidebar lists and new documents are created in.
+ *
+ * Created on demand rather than at startup: a writer who never opens the
+ * sidebar should not find an empty directory appear in ~/Documents.
+ */
+QUrl Backend::libraryRoot() const {
+    QString path = QSettings().value(libraryRootSetting).toString();
+    if (path.isEmpty()) {
+        const QString documents =
+            QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+        path = QDir(documents.isEmpty() ? QDir::homePath() : documents)
+                   .filePath(QStringLiteral("Folio"));
+    }
+    QDir().mkpath(path);
+    return QUrl::fromLocalFile(path);
+}
+
+void Backend::chooseLibraryRoot(const QUrl &url) {
+    if (!url.isLocalFile())
+        return;
+    QSettings().setValue(libraryRootSetting, url.toLocalFile());
+    emit libraryRootChanged();
+}
+
+bool Backend::sidebarVisible() const {
+    return QSettings().value(sidebarVisibleSetting, true).toBool();
+}
+
+void Backend::setSidebarVisible(bool visible) {
+    if (visible == sidebarVisible())
+        return;
+    QSettings().setValue(sidebarVisibleSetting, visible);
+    emit sidebarVisibleChanged();
+}
+
+/**
+ * Create an empty document in the library and open it.
+ *
+ * Giving the file a home immediately is what lets autosave take over: an
+ * untitled buffer has no URL, so it would sit unsaved until the writer dealt
+ * with a dialog. The name is deduplicated so a second new document does not
+ * silently open the first.
+ */
+void Backend::newDocumentInLibrary() {
+    const QDir root(libraryRoot().toLocalFile());
+    QString name = QStringLiteral("Untitled.md");
+    for (int n = 2; QFileInfo::exists(root.filePath(name)); ++n)
+        name = QStringLiteral("Untitled %1.md").arg(n);
+
+    const QString path = root.filePath(name);
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly)) {
+        setStatus(QStringLiteral("Could not create %1.").arg(name));
+        return;
+    }
+    file.close();
+    emit libraryRootChanged();
+    open(QUrl::fromLocalFile(path));
 }
 
 void Backend::scheduleRecovery() {
