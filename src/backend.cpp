@@ -535,7 +535,7 @@ QUrl Backend::libraryRoot() const {
         const QString documents =
             QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
         path = QDir(documents.isEmpty() ? QDir::homePath() : documents)
-                   .filePath(QStringLiteral("Folio"));
+                   .filePath(QStringLiteral("Omawrite"));
     }
     QDir().mkpath(path);
     return QUrl::fromLocalFile(path);

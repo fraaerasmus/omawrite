@@ -52,7 +52,7 @@ Item {
         Text {
             text: "Library"
             color: sidebar.mutedColor
-            font.family: "Folio Mono"
+            font.family: "iA Writer Mono S"
             font.pixelSize: sidebar.scaled(11)
             anchors { left: parent.left; leftMargin: sidebar.scaled(16); verticalCenter: parent.verticalCenter }
         }
@@ -61,7 +61,7 @@ Item {
             objectName: "newDocumentButton"
             text: "+"
             color: newArea.containsMouse ? sidebar.accentColor : sidebar.mutedColor
-            font.family: "Folio Mono"
+            font.family: "iA Writer Mono S"
             font.pixelSize: sidebar.scaled(17)
             anchors { right: parent.right; rightMargin: sidebar.scaled(14); verticalCenter: parent.verticalCenter }
 
@@ -111,7 +111,7 @@ Item {
                 // The extension is noise when every row has one.
                 text: fileName.replace(/\.(md|markdown|txt)$/i, "")
                 color: parent.current ? sidebar.textColor : sidebar.mutedColor
-                font.family: "Folio Mono"
+                font.family: "iA Writer Mono S"
                 font.pixelSize: sidebar.scaled(12)
                 elide: Text.ElideRight
                 anchors {
@@ -137,7 +137,7 @@ Item {
         visible: files.count === 0 && files.status === FolderListModel.Ready
         text: "No documents yet"
         color: sidebar.mutedColor
-        font.family: "Folio Mono"
+        font.family: "iA Writer Mono S"
         font.pixelSize: sidebar.scaled(11)
         anchors { horizontalCenter: parent.horizontalCenter; top: header.bottom; topMargin: sidebar.scaled(24) }
     }
