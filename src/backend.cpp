@@ -531,6 +531,8 @@ void Backend::saveTo(const QUrl &url) {
  */
 QUrl Backend::libraryRoot() const {
     QString path = QSettings().value(libraryRootSetting).toString();
+    if (path.isEmpty())
+        path = qEnvironmentVariable("OMAWRITE_LIBRARY");
     if (path.isEmpty()) {
         const QString documents =
             QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
