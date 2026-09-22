@@ -106,6 +106,20 @@ void LibraryModel::togglePinned(const QUrl &url) {
     refresh();
 }
 
+int LibraryModel::indexOf(const QUrl &url) const {
+    const QString path = url.toLocalFile();
+    for (int i = 0; i < m_entries.size(); ++i)
+        if (m_entries.at(i).filePath == path)
+            return i;
+    return -1;
+}
+
+QUrl LibraryModel::urlAt(int row) const {
+    if (row < 0 || row >= m_entries.size())
+        return {};
+    return QUrl::fromLocalFile(m_entries.at(row).filePath);
+}
+
 bool LibraryModel::moveToTrash(const QUrl &url) {
     if (!url.isLocalFile())
         return false;

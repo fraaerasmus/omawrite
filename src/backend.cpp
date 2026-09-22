@@ -11,7 +11,6 @@
 #include <QDesktopServices>
 #include <QGuiApplication>
 #include <QMimeData>
-#include <QProcess>
 #include <QPrintDialog>
 #include <QPrinter>
 #include <QQuickTextDocument>
@@ -315,11 +314,29 @@ void Backend::printDocument() {
     }
 }
 
-void Backend::newWindow() {
-    const bool started = QProcess::startDetached(QCoreApplication::applicationFilePath(),
-                                                 QStringList());
-    if (!started)
-        setStatus(QStringLiteral("Could not open a new window."));
+QUrl Backend::adjacentDocument(int delta) const {
+    const int count = library()->count();
+    if (count == 0)
+        return {};
+    const int current = library()->indexOf(m_fileUrl);
+    const int row = current < 0 ? (delta > 0 ? 0 : count - 1)
+                                : qBound(0, current + delta, count - 1);
+    return library()->urlAt(row);
+}
+
+void Backend::trashCurrentDocument() {
+    const QUrl doomed = m_fileUrl;
+    const int row = library()->indexOf(doomed);
+    if (row < 0)
+        return;
+    const int count = library()->count();
+    if (count > 1) {
+        // Leave the file before it goes, so the watcher never reports it deleted.
+        open(library()->urlAt(row == count - 1 ? row - 1 : row + 1));
+        library()->moveToTrash(doomed);
+    } else if (library()->moveToTrash(doomed)) {
+        newDocumentInLibrary();
+    }
 }
 
 QString Backend::clipboardUrl() const {

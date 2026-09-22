@@ -78,7 +78,8 @@ public:
     Q_INVOKABLE void reloadFromDisk();
     Q_INVOKABLE void keepExternalVersion();
     Q_INVOKABLE void printDocument();
-    Q_INVOKABLE void newWindow();
+    Q_INVOKABLE QUrl adjacentDocument(int delta) const;
+    Q_INVOKABLE void trashCurrentDocument();
     QUrl libraryRoot() const;
     LibraryModel *library() const;
     qreal editorZoom() const;

@@ -361,6 +361,44 @@ private slots:
                  QStringLiteral("straight into the library"));
     }
 
+    void adjacentDocumentStepsThroughTheLibrary() {
+        QTemporaryDir library;
+        QVERIFY(library.isValid());
+        Backend backend;
+        backend.chooseLibraryRoot(QUrl::fromLocalFile(library.path()));
+
+        // Nothing open yet: stepping enters the list from either end.
+        QVERIFY(backend.adjacentDocument(1).isEmpty());
+        for (int i = 0; i < 3; ++i)
+            backend.newDocumentInLibrary();
+        QCOMPARE(backend.library()->count(), 3);
+        const QUrl first = backend.library()->urlAt(0);
+        const QUrl last = backend.library()->urlAt(2);
+
+        backend.open(first);
+        QCOMPARE(backend.adjacentDocument(-1), first);
+        QCOMPARE(backend.adjacentDocument(1), backend.library()->urlAt(1));
+        backend.open(last);
+        QCOMPARE(backend.adjacentDocument(1), last);
+    }
+
+    void trashCurrentDocumentMovesToANeighbour() {
+        QTemporaryDir library;
+        QVERIFY(library.isValid());
+        Backend backend;
+        backend.chooseLibraryRoot(QUrl::fromLocalFile(library.path()));
+        backend.newDocumentInLibrary();
+        backend.newDocumentInLibrary();
+        const QUrl doomed = backend.fileUrl();
+
+        backend.trashCurrentDocument();
+        if (QFileInfo::exists(doomed.toLocalFile()))
+            QSKIP("No usable trash on this system");
+        QVERIFY(backend.fileUrl() != doomed);
+        QCOMPARE(backend.library()->count(), 1);
+        QCOMPARE(backend.library()->indexOf(backend.fileUrl()), 0);
+    }
+
     void showsTheLibrarySidebarByDefault() {
         const QString mainQmlPath = QFINDTESTDATA("../src/Main.qml");
         QVERIFY(!mainQmlPath.isEmpty());

@@ -59,6 +59,12 @@ ApplicationWindow {
             unsavedChangesDialog.open();
     }
 
+    function openAdjacent(delta) {
+        const url = backend.adjacentDocument(delta);
+        if (url.toString() !== "" && url !== backend.fileUrl)
+            requestOpen(url);
+    }
+
     function requestOpen(url) {
         if (!backend.modified) {
             backend.open(url);
@@ -193,7 +199,25 @@ ApplicationWindow {
     Shortcut {
         sequence: "Ctrl+N"
         context: Qt.ApplicationShortcut
-        onActivated: backend.newWindow()
+        onActivated: backend.newDocumentInLibrary()
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Down"
+        context: Qt.ApplicationShortcut
+        onActivated: win.openAdjacent(1)
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Up"
+        context: Qt.ApplicationShortcut
+        onActivated: win.openAdjacent(-1)
+    }
+
+    Shortcut {
+        sequence: "Ctrl+Shift+D"
+        context: Qt.ApplicationShortcut
+        onActivated: backend.trashCurrentDocument()
     }
 
     Shortcut {
@@ -361,7 +385,7 @@ ApplicationWindow {
         standardButtons: Dialog.Close
         anchors.centerIn: parent
         contentItem: Label {
-            text: "Ctrl+S  Save\nCtrl+Shift+S  Save As\nCtrl+O  Open\nCtrl+N  New Window\nCtrl+F  Find\nCtrl+H  Find and Replace\nCtrl+B  Bold\nCtrl+I  Italic\nCtrl+K  Link\nCtrl+P  Print\nCtrl+= / Ctrl+-  Zoom\nCtrl+0  Reset zoom\nCtrl+\\  Toggle sidebar\nF11 / Super+F  Fullscreen\nCtrl+?  Shortcuts"
+            text: "Ctrl+S  Save\nCtrl+Shift+S  Save As\nCtrl+O  Open\nCtrl+N  New document\nCtrl+Up / Ctrl+Down  Previous / next document\nCtrl+Shift+D  Trash document\nCtrl+F  Find\nCtrl+H  Find and Replace\nCtrl+B  Bold\nCtrl+I  Italic\nCtrl+K  Link\nCtrl+P  Print\nCtrl+= / Ctrl+-  Zoom\nCtrl+0  Reset zoom\nCtrl+\\  Toggle sidebar\nF11 / Super+F  Fullscreen\nCtrl+?  Shortcuts"
             lineHeight: 1.5
         }
     }

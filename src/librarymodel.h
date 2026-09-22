@@ -40,6 +40,8 @@ public:
     Q_INVOKABLE void togglePinned(const QUrl &url);
     /** Move a document to the trash. Never unlinks: a mis-click is recoverable. */
     Q_INVOKABLE bool moveToTrash(const QUrl &url);
+    Q_INVOKABLE int indexOf(const QUrl &url) const;
+    Q_INVOKABLE QUrl urlAt(int row) const;
     Q_INVOKABLE void refresh();
 
     static QString displayNameFor(const QString &fileName);
