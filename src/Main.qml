@@ -179,7 +179,7 @@ ApplicationWindow {
     }
 
     Shortcut {
-        sequence: "Ctrl+K"
+        sequence: "Ctrl+Shift+K"
         context: Qt.WindowShortcut
         onActivated: editor.insertLink()
     }
@@ -203,13 +203,13 @@ ApplicationWindow {
     }
 
     Shortcut {
-        sequence: "Ctrl+Down"
+        sequence: "Ctrl+J"
         context: Qt.ApplicationShortcut
         onActivated: win.openAdjacent(1)
     }
 
     Shortcut {
-        sequence: "Ctrl+Up"
+        sequence: "Ctrl+K"
         context: Qt.ApplicationShortcut
         onActivated: win.openAdjacent(-1)
     }
@@ -385,7 +385,7 @@ ApplicationWindow {
         standardButtons: Dialog.Close
         anchors.centerIn: parent
         contentItem: Label {
-            text: "Ctrl+S  Save\nCtrl+Shift+S  Save As\nCtrl+O  Open\nCtrl+N  New document\nCtrl+Up / Ctrl+Down  Previous / next document\nCtrl+Shift+D  Trash document\nCtrl+F  Find\nCtrl+H  Find and Replace\nCtrl+B  Bold\nCtrl+I  Italic\nCtrl+K  Link\nCtrl+P  Print\nCtrl+= / Ctrl+-  Zoom\nCtrl+0  Reset zoom\nCtrl+\\  Toggle sidebar\nF11 / Super+F  Fullscreen\nCtrl+?  Shortcuts"
+            text: "Ctrl+S  Save\nCtrl+Shift+S  Save As\nCtrl+O  Open\nCtrl+N  New document\nCtrl+K / Ctrl+J  Previous / next document\nCtrl+Shift+D  Trash document\nCtrl+F  Find\nCtrl+H  Find and Replace\nCtrl+B  Bold\nCtrl+I  Italic\nCtrl+Shift+K  Link\nCtrl+P  Print\nCtrl+= / Ctrl+-  Zoom\nCtrl+0  Reset zoom\nCtrl+\\  Toggle sidebar\nF11 / Super+F  Fullscreen\nCtrl+?  Shortcuts"
             lineHeight: 1.5
         }
     }
